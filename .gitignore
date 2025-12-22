@@ -1,0 +1,40 @@
+# ========================
+# Python
+# ========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+venv/
+ENV/
+env/
+
+# ========================
+# OS / Editor
+# ========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ========================
+# Logs / temp
+# ========================
+*.log
+*.tmp
+
+# ========================
+# Outputs / results (si générés)
+# ========================
+outputs/
+results/
+embeddings/
+*.csv
+*.jsonl
+
+# ========================
+# Evaluation auto
+# ========================
+evaluation/__pycache__/
