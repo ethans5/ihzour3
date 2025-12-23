@@ -8,8 +8,8 @@ from collections import defaultdict
 # Paths
 # ----------------------------
 RUN_FILES = [
-    Path("evaluation/results/run_required_20251222_194723.jsonl"),
-    Path("evaluation/results/run_custom_20251222_201857.jsonl"),
+    Path("evaluation/results/run_required_20251223_174914.jsonl"),
+    Path("evaluation/results/run_custom_20251223_182011.jsonl"),
 ]
 EMB_PATH = Path("evaluation/results/answers_embeddings.npy")
 

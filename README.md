@@ -140,10 +140,116 @@ This histogram shows cosine similarity between answers generated using BM25 retr
   - One peak near 1.0 → nearly identical answers
   - One peak between 0.1 and 0.3 → fundamentally different answers
 - This indicates that BM25 and embeddings often retrieve **different contextual evidence**.
+---
+## 9. Detailed Stability and Retrieval Variance Analysis
+
+Beyond aggregate stability scores, we conducted a fine-grained analysis to identify the **most unstable and most stable configurations**, as well as the **largest differences between BM25 and embedding-based retrieval**.
+
+All scores are based on **mean cosine similarity across K values** or between retrieval methods.
 
 ---
 
-## 9. Chunk-Level Retrieval Analysis (Precision and Recall)
+### 9.1 Top 10 Most Unstable Configurations (Sensitivity to K)
+
+These configurations exhibit the **largest variation in generated answers when K changes**, indicating sensitivity to retrieval noise.
+
+| Query ID | Chunking / Retrieval | K | Mean Cosine |
+|--------|----------------------|---|-------------|
+| CUS_C2 | fixed / emb | 3 | 0.253 |
+| CUS_C2 | child / emb | 3 | 0.292 |
+| CUS_C2 | fixed / bm25 | 3 | 0.309 |
+| CUS_C2 | child / bm25 | 3 | 0.329 |
+| CUS_C1 | fixed / bm25 | 3 | 0.332 |
+| REQ_C3 | fixed / bm25 | 3 | 0.335 |
+| CUS_F1 | fixed / bm25 | 3 | 0.339 |
+| REQ_F4 | child / bm25 | 3 | 0.351 |
+| REQ_F4 | fixed / emb | 3 | 0.353 |
+| REQ_F3 | fixed / emb | 3 | 0.359 |
+
+**Interpretation**
+
+- Most unstable cases involve **fixed-size chunking**
+- Low K values amplify instability when chunking is coarse
+- Even embeddings cannot compensate for poorly structured context
+
+---
+
+### 9.2 Top 10 Most Stable Configurations (Consistency Across K)
+
+These configurations produce **nearly identical answers regardless of K**, demonstrating strong robustness.
+
+| Query ID | Chunking / Retrieval | K | Mean Cosine |
+|--------|----------------------|---|-------------|
+| CUS_F2 | fixed / emb | 3 | 0.977 |
+| REQ_F1 | fixed / emb | 3 | 0.978 |
+| REQ_F1 | fixed / bm25 | 3 | 0.979 |
+| CUS_F2 | fixed / bm25 | 3 | 0.979 |
+| CUS_F4 | fixed / bm25 | 3 | 0.981 |
+| CUS_F4 | child / emb | 3 | 0.981 |
+| CUS_C4 | child / bm25 | 3 | 1.000 |
+| CUS_C4 | child / emb | 3 | 1.000 |
+| REQ_F3 | child / bm25 | 3 | 1.000 |
+| REQ_F4 | child / emb | 3 | 1.000 |
+
+**Interpretation**
+
+- Perfect stability (cosine = 1.0) is achieved mostly with **Father–Son chunking**
+- Well-scoped child chunks consistently retrieve the same evidence
+- Retrieval method becomes secondary when chunking is optimal
+
+---
+
+### 9.3 Largest Differences Between BM25 and Embeddings
+
+These cases show the **strongest disagreement** between lexical and semantic retrieval.
+
+| Query ID | Configuration | K | Cosine |
+|--------|--------------|---|--------|
+| REQ_C4 | child bm25 vs child emb | 5 | 0.060 |
+| REQ_F2 | child bm25 vs child emb | 3 | 0.065 |
+| REQ_C4 | child bm25 vs child emb | 8 | 0.071 |
+| REQ_C2 | child bm25 vs child emb | 8 | 0.079 |
+| REQ_C4 | fixed bm25 vs fixed emb | 5 | 0.083 |
+| CUS_C2 | fixed bm25 vs fixed emb | 5 | 0.093 |
+| REQ_F4 | child bm25 vs child emb | 8 | 0.107 |
+| CUS_C2 | child bm25 vs child emb | 3 | 0.111 |
+| REQ_F3 | child bm25 vs child emb | 5 | 0.119 |
+| REQ_F3 | fixed bm25 vs fixed emb | 5 | 0.120 |
+
+**Interpretation**
+
+- BM25 and embeddings often retrieve **fundamentally different evidence**
+- Semantic similarity alone does not guarantee factual alignment
+- This explains the bimodal distribution observed in **Plot B**
+
+---
+
+### 9.4 Most Similar Answers Between BM25 and Embeddings
+
+These cases show **perfect or near-perfect agreement** between retrieval methods.
+
+| Query ID | Configuration | K | Cosine |
+|--------|--------------|---|--------|
+| REQ_C3 | fixed bm25 vs fixed emb | 3 | 1.000 |
+| CUS_C1 | child bm25 vs child emb | 3 | 1.000 |
+| CUS_C4 | fixed bm25 vs fixed emb | 3 | 1.000 |
+| CUS_C4 | fixed bm25 vs fixed emb | 5 | 1.000 |
+| CUS_C4 | child bm25 vs child emb | 3 | 1.000 |
+| CUS_C4 | child bm25 vs child emb | 5 | 1.000 |
+| CUS_C4 | child bm25 vs child emb | 8 | 1.000 |
+| REQ_F4 | fixed bm25 vs fixed emb | 3 | 1.000 |
+| REQ_F3 | fixed bm25 vs fixed emb | 3 | 1.000 |
+| REQ_F4 | child bm25 vs child emb | 3 | 1.000 |
+
+**Interpretation**
+
+- Agreement occurs when both methods retrieve the same highly salient chunks
+- This typically happens for well-defined factual questions
+- It confirms that retrieval methods can converge when document structure is clear
+
+---
+
+## 10. Chunk-Level Retrieval Analysis (Precision and Recall)
 
 We manually analyzed retrieved chunks to evaluate:
 
@@ -158,7 +264,7 @@ We manually analyzed retrieved chunks to evaluate:
 
 ---
 
-## 10. Answer Faithfulness and Grounding
+## 11. Answer Faithfulness and Grounding
 
 We evaluated whether generated answers were faithful to the retrieved chunks.
 
@@ -170,7 +276,7 @@ We evaluated whether generated answers were faithful to the retrieved chunks.
 
 ---
 
-## 11. Tested Queries and Qualitative Answer Analysis
+## 12. Tested Queries and Qualitative Answer Analysis
 
 In order to complement the quantitative evaluation, we tested the RAG pipeline on **real user queries** covering both **factual** and **conceptual** information needs.
 
@@ -178,7 +284,7 @@ These queries were used to generate the answers analyzed in the stability and si
 
 ---
 
-### 11.1 Example Factual Query
+### 12.1 Example Factual Query
 
 **Tested question**
 
@@ -200,7 +306,7 @@ This behavior directly explains the higher stability scores observed for hierarc
 
 ---
 
-### 11.2 Example Conceptual Query
+### 12.2 Example Conceptual Query
 
 **Tested question**
 
@@ -221,7 +327,7 @@ However, conceptual questions were more sensitive to retrieval variation, which 
 
 ---
 
-### 11.3 Relation to Quantitative Results
+### 12.3 Relation to Quantitative Results
 
 These tested queries confirm the quantitative findings:
 
@@ -234,7 +340,7 @@ tive findings.
 
 ---
 
-## 12. Final Takeaway
+## 13. Final Takeaway
 
 This evaluation demonstrates that **hierarchical chunking is the most critical factor** in building a stable and reliable RAG system.
 

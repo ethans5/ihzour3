@@ -1,93 +1,28 @@
-# # analysis_responses_embeddings.py
-
-# import os
-# import json
-# import numpy as np
-# from pathlib import Path
-# from sentence_transformers import SentenceTransformer
-
-# # 🔒 OFFLINE SAFE
-# os.environ["HF_HUB_OFFLINE"] = "1"
-# os.environ["TRANSFORMERS_OFFLINE"] = "1"
-
-# RESULTS_PATHS = [
-#     Path("evaluation/results/run_required_20251222_194723.jsonl"),
-#     Path("evaluation/results/run_custom_20251222_201857.jsonl"),
-# ]
-
-# MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
-
-
-# def load_answers(paths):
-#     answers = []
-#     meta = []
-
-#     for path in paths:
-#         if not path.exists():
-#             print("⚠️ Fichier introuvable :", path)
-#             continue
-
-#         with open(path, "r", encoding="utf-8") as f:
-#             for line in f:
-#                 row = json.loads(line)
-#                 if row.get("answer"):
-#                     answers.append(row["answer"])
-#                     meta.append({
-#                         "query_id": row.get("query_id"),
-#                         "config": row.get("config"),
-#                         "k": row.get("k"),
-#                         "source_file": path.name,
-#                     })
-
-#     return answers, meta
-
-
-# def main():
-#     answers, meta = load_answers(RESULTS_PATHS)
-#     print("Nb answers:", len(answers))
-
-#     if not answers:
-#         print("❌ Aucune réponse chargée, arrêt.")
-#         return
-
-#     model = SentenceTransformer(MODEL_NAME)
-
-#     embeddings = model.encode(
-#         answers,
-#         batch_size=32,
-#         normalize_embeddings=True,
-#         convert_to_numpy=True,
-#     )
-
-#     print("Embeddings shape:", embeddings.shape)
-
-#     out_path = Path("evaluation/results/answers_embeddings.npy")
-#     np.save(out_path, embeddings)
-#     print("Saved:", out_path)
-
-
-# if __name__ == "__main__":
-#     main()
+import os
 import json
 import numpy as np
 from pathlib import Path
+from sentence_transformers import SentenceTransformer
+
+# Configuration
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 RESULTS_FILES = [
-    Path("evaluation/results/run_required_20251222_194723.jsonl"),
-    Path("evaluation/results/run_custom_20251222_201857.jsonl"),
+    Path("evaluation/results/run_required_20251223_174914.jsonl"),
+    Path("evaluation/results/run_custom_20251223_182011.jsonl"),
 ]
 
-EMB_PATH = Path("evaluation/results/answers_embeddings.npy")
+EMB_OUT_PATH = Path("evaluation/results/answers_embeddings.npy")
+MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 
-
-def load_runs(paths):
-    """
-    Charge les lignes JSONL et reconstruit un champ 'config' = '{chunking}/{representation}'
-    """
+def load_data(paths):
     rows = []
+    texts = []
+    
     for p in paths:
         if not p.exists():
-            print("Missing:", p)
+            print(f"Missing file: {p}")
             continue
 
         with open(p, "r", encoding="utf-8") as f:
@@ -95,55 +30,67 @@ def load_runs(paths):
                 line = line.strip()
                 if not line:
                     continue
+                
                 r = json.loads(line)
-
                 ans = r.get("answer")
+                
                 if not ans:
                     continue
 
-                # ✅ reconstruire config à partir des vrais champs du JSON
                 chunking = r.get("chunking")
                 repr_ = r.get("representation")
-                if chunking is None or repr_ is None:
-                    # on skippe proprement si format inattendu
-                    continue
+                
+                if chunking and repr_:
+                    r["config"] = f"{chunking}/{repr_}"
+                    rows.append(r)
+                    texts.append(ans)
 
-                r["config"] = f"{chunking}/{repr_}"
-                r["_source_file"] = p.name
-                rows.append(r)
+    return rows, texts
 
-    return rows
+def compute_embeddings(texts):
+    print(f"Generating embeddings for {len(texts)} answers...")
+    model = SentenceTransformer(MODEL_NAME)
+    embeddings = model.encode(
+        texts,
+        batch_size=32,
+        normalize_embeddings=True,
+        convert_to_numpy=True,
+        show_progress_bar=True
+    )
+    return embeddings
 
-
-def cosine_matrix(emb: np.ndarray) -> np.ndarray:
-    # embeddings normalisés -> cosinus = produit scalaire
+def cosine_matrix(emb):
     return emb @ emb.T
 
-
 def group_key(r):
-    # même query + même config (fixed/bm25, child/emb, etc.)
     return (r.get("query_id"), r.get("config"))
 
-
 def main():
-    rows = load_runs(RESULTS_FILES)
-    emb = np.load(EMB_PATH)
+    # 1. Chargement des données
+    rows, texts = load_data(RESULTS_FILES)
+    print(f"Loaded {len(rows)} rows.")
 
-    print("Rows:", len(rows))
-    print("Emb:", emb.shape)
+    if not rows:
+        print("No data found.")
+        return
 
-    if len(rows) != emb.shape[0]:
-        raise RuntimeError(
-            f"Mismatch rows vs embeddings: rows={len(rows)} emb={emb.shape[0]}.\n"
-            "➡️ Assure-toi d'avoir généré answers_embeddings.npy à partir des mêmes fichiers JSONL "
-            "et dans le même ordre."
-        )
+    # 2. Génération des embeddings (Partie activée)
+    if EMB_OUT_PATH.exists():
+        print(f"Loading existing embeddings from {EMB_OUT_PATH}")
+        emb = np.load(EMB_OUT_PATH)
+        if len(rows) != emb.shape[0]:
+            print("Mismatch found, recomputing...")
+            emb = compute_embeddings(texts)
+            np.save(EMB_OUT_PATH, emb)
+    else:
+        emb = compute_embeddings(texts)
+        np.save(EMB_OUT_PATH, emb)
+        print(f"Saved embeddings to {EMB_OUT_PATH}")
 
+    # 3. Analyse
     cos = cosine_matrix(emb)
 
-    # ------------------------------------------------------------------
-    # A) Stabilité selon K (même query_id + config)
-    # ------------------------------------------------------------------
+    # A) Stabilité selon K
     by_qc = {}
     for i, r in enumerate(rows):
         key = group_key(r)
@@ -161,50 +108,45 @@ def main():
 
         stabilities.append((key, float(np.mean(sims)), len(idxs)))
 
-    stabilities.sort(key=lambda x: x[1])  # plus instable en premier
+    stabilities.sort(key=lambda x: x[1])
 
-    print("\n=== Top 10 configs les plus INSTABLES (selon K) ===")
+    print("\n=== Top 10 INSTABLE Configs (variance on K) ===")
     for (qid, cfg), s, n in stabilities[:10]:
         print(f"{qid} | {cfg} | n={n} | mean_cos={s:.3f}")
 
-    print("\n=== Top 10 configs les plus STABLES (selon K) ===")
+    print("\n=== Top 10 STABLE Configs (variance on K) ===")
     for (qid, cfg), s, n in stabilities[-10:]:
         print(f"{qid} | {cfg} | n={n} | mean_cos={s:.3f}")
 
-    # ------------------------------------------------------------------
-    # B) Comparaison BM25 vs EMB (même query_id + même chunking, même k)
-    # ------------------------------------------------------------------
-    index = {}
+    # B) Comparaison BM25 vs EMB
+    index_map = {}
     for i, r in enumerate(rows):
         qid = r.get("query_id")
-        cfg = r.get("config")  # ex: "fixed/bm25" ou "child/emb"
+        cfg = r.get("config")
         k = r.get("k")
-        if qid is None or cfg is None or k is None:
-            continue
-        index[(qid, cfg, k)] = i
+        if qid and cfg and k:
+            index_map[(qid, cfg, k)] = i
 
     pairs = []
-    for (qid, cfg, k), i_bm25 in index.items():
+    for (qid, cfg, k), i_bm25 in index_map.items():
         if cfg.endswith("/bm25"):
             cfg_emb = cfg.replace("/bm25", "/emb")
-            j = index.get((qid, cfg_emb, k))
+            j = index_map.get((qid, cfg_emb, k))
             if j is not None:
                 pairs.append((qid, cfg, cfg_emb, k, float(cos[i_bm25, j])))
 
-    if not pairs:
-        print("\n⚠️ Aucune paire BM25 vs EMB trouvée. Vérifie que tu as bien des configs bm25 ET emb.")
-        return
+    if pairs:
+        pairs.sort(key=lambda x: x[4])
 
-    pairs.sort(key=lambda x: x[4])  # plus différent d'abord
+        print("\n=== Top 10 Different answers (BM25 vs EMB) ===")
+        for qid, c1, c2, k, s in pairs[:10]:
+            print(f"{qid} | {c1} vs {c2} | k={k} | cos={s:.3f}")
 
-    print("\n=== Top 10 BM25 vs EMB les plus DIFFÉRENTS (cos faible) ===")
-    for qid, c1, c2, k, s in pairs[:10]:
-        print(f"{qid} | {c1} vs {c2} | k={k} | cos={s:.3f}")
-
-    print("\n=== Top 10 BM25 vs EMB les plus SIMILAIRES (cos élevé) ===")
-    for qid, c1, c2, k, s in pairs[-10:]:
-        print(f"{qid} | {c1} vs {c2} | k={k} | cos={s:.3f}")
-
+        print("\n=== Top 10 Similar answers (BM25 vs EMB) ===")
+        for qid, c1, c2, k, s in pairs[-10:]:
+            print(f"{qid} | {c1} vs {c2} | k={k} | cos={s:.3f}")
+    else:
+        print("\nNo pairs found for BM25 vs EMB comparison.")
 
 if __name__ == "__main__":
     main()
