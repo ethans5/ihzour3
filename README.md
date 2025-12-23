@@ -3,245 +3,230 @@
 
 ---
 
-## 1. Chunking Methodology (Assigned Method)
+## 1. Project Overview
+
+This project evaluates a **Retrieval-Augmented Generation (RAG)** pipeline applied to **long parliamentary debates**.  
+The main objective is to analyze how different design choices affect:
+
+- Retrieval quality
+- Answer stability
+- Faithfulness of generated answers
+
+The evaluation focuses on three core dimensions:
+
+1. Chunking strategy  
+2. Retrieval representation (BM25 vs embeddings)  
+3. Sensitivity to the number of retrieved chunks (K)
+
+---
+
+## 2. Chunking Methodology (Assigned Method)
 
 ### Father–Son (Parent–Child) Chunking
 
-The main chunking strategy used in this project is the **Father–Son (Parent–Child)** method, which was the method assigned to us.  
-This hierarchical chunking approach is designed to balance **context preservation** and **retrieval precision** in long parliamentary documents.
+The main chunking strategy used in this project is the **Father–Son (Parent–Child)** method, which was assigned for this evaluation.
 
-Each document is first segmented into **parent chunks**, created by grouping consecutive sentences up to a relatively large word limit. These parent chunks preserve thematic continuity across extended parts of the text.  
-Each parent chunk is then subdivided into **child chunks**, which are smaller, sentence-based segments with minimal overlap.
+Each document is first segmented into **parent chunks**, which group consecutive sentences to preserve broader thematic context.  
+Each parent chunk is then subdivided into **child chunks**, which are smaller, sentence-based units with minimal overlap.
 
-This design has two main advantages:
+This design provides two complementary benefits:
 
 - **Improved recall**: parent chunks ensure that relevant regions of the document are not missed.
-- **Improved precision**: child chunks reduce noise by focusing retrieval on tightly scoped semantic units.
+- **Improved precision**: child chunks allow retrieval to focus on tightly scoped semantic content.
 
-This approach is particularly well suited for long and structured texts such as parliamentary debates.
-
----
-
-## 2. Large Language Model (LLM)
-
-We used **Qwen 2.5 (3B)** via **Ollama** as the LLM in our RAG pipeline.
-
-The reasons for this choice are:
-
-- Local and offline execution, ensuring reproducibility  
-- Low computational cost and fast inference  
-- Adequate generation quality when combined with high-quality retrieved context  
-
-Since this is a Retrieval-Augmented Generation system, answer quality depends primarily on retrieval quality rather than model size.
+This hierarchical approach is particularly well suited for long and structured documents such as parliamentary debates.
 
 ---
 
-## 3. Vector Representation Methods
+## 3. Large Language Model (LLM)
 
-Two retrieval representations were evaluated:
+We used **Qwen 2.5 (3B)** via **Ollama** as the language model in our RAG pipeline.
 
-### BM25 (Lexical Retrieval)
+This choice was motivated by:
 
-BM25 relies on exact word matching and is especially effective for:
+- Local and offline execution (full reproducibility)
+- Low computational cost and fast inference
+- Adequate generation quality when combined with high-quality retrieved context
 
-- Factual queries  
-- Named entities  
-- Dates, numbers, and organizations  
-
-### Dense Embeddings (Semantic Retrieval)
-
-We used **MPNet (`all-mpnet-base-v2`)** to generate dense embeddings.  
-This approach captures semantic similarity and enables retrieval even when the query is a paraphrase of the source text.
+Since this is a RAG system, overall answer quality depends more on **retrieval quality** than on model size.
 
 ---
 
-## 4. Choice of K (Number of Retrieved Chunks)
+## 4. Retrieval Representations
 
-We evaluated **K = 3, 5, and 8**, representing different trade-offs:
+Two retrieval approaches were evaluated:
 
-- **K = 3**: high precision, lower recall  
+### 4.1 BM25 (Lexical Retrieval)
+
+BM25 relies on exact term matching and is especially effective for:
+
+- Factual questions
+- Named entities
+- Dates, numbers, and organizations
+
+### 4.2 Dense Embeddings (Semantic Retrieval)
+
+Dense embeddings were generated using **MPNet (`all-mpnet-base-v2`)**.  
+This method captures semantic similarity and enables retrieval even when the query is a paraphrase of the source text.
+
+---
+
+## 5. Choice of K (Number of Retrieved Chunks)
+
+We evaluated **K = 3, 5, and 8**, representing different precision–recall regimes:
+
+- **K = 3**: high precision, limited recall  
 - **K = 5**: balanced precision and recall  
-- **K = 8**: higher recall but increased noise  
+- **K = 8**: higher recall, increased risk of noise  
 
-To analyze sensitivity to K, we measured **answer stability across K values** using cosine similarity between generated answers.
+To measure sensitivity to K, we computed **answer stability across K values**, using cosine similarity between generated answers.
 
 ---
 
-## 5. Stability by Configuration (Plot A)
+## 6. Plot A — Stability by Configuration
 
 ![Plot A – Stability by configuration](evaluation/plots/plotA_stability_by_config.png)
 
-**Figure 1 – Stability by configuration**
+This plot shows the **mean cosine similarity of answers across different K values**, grouped by configuration.
 
-This plot shows the mean cosine similarity of generated answers across different K values for each configuration.
+### Observations
 
-**Observations:**
+- **Child chunking (Father–Son)** yields the highest stability.
+- Fixed-size chunking is significantly less stable, especially with BM25.
+- Retrieval representation has less impact than chunking strategy.
 
-- Configurations using **child chunking** show significantly higher stability.
-- Fixed-size chunking, especially with BM25, is substantially less stable.
+### Conclusion
 
-**Conclusion:**  
-The Father–Son chunking method clearly outperforms fixed-size chunking in terms of robustness and consistency.
+Chunking strategy is the dominant factor influencing answer stability.  
+Hierarchical chunking clearly outperforms fixed-size chunking.
 
 ---
 
-## 6. Stability by Query Type (Plot C)
+## 7. Plot C — Stability by Query Type
 
 ![Plot C – Stability by query type](evaluation/plots/plotC_stability_by_query_type.png)
 
-**Figure 2 – Stability by query type**
+This plot compares answer stability between **factual** and **conceptual** queries.
 
-Factual queries exhibit slightly higher stability than conceptual queries.  
-This is expected, as conceptual questions require higher-level reasoning and are more sensitive to retrieval variation.
+### Observations
+
+- Factual queries exhibit slightly higher stability.
+- Conceptual queries are more sensitive to retrieval variation.
+
+### Interpretation
+
+Conceptual questions require higher-level reasoning and synthesis, making them more vulnerable to changes in retrieved context.
 
 ---
 
-## 7. BM25 vs Embeddings Answer Similarity (Plot B)
+## 8. Plot B — BM25 vs Embeddings Answer Similarity
 
 ![Plot B – BM25 vs Embeddings similarity](evaluation/plots/plotB_hist_bm25_vs_emb.png)
 
-**Figure 3 – Histogram of cosine similarity between BM25-based and embedding-based answers**
+This histogram shows cosine similarity between answers generated using BM25 retrieval and embedding-based retrieval, for the **same query, chunking strategy, and K**.
 
-This histogram compares answers produced using BM25 retrieval versus embedding-based retrieval.
+### Key Insights
 
-**Key insight:**
-
-- The distribution is bimodal.  
-- Some answers are nearly identical (cosine ≈ 1.0).  
-- Others differ significantly (cosine ≈ 0.1–0.3).  
-
-This shows that BM25 and embeddings often retrieve fundamentally different contexts.
+- The distribution is **bimodal**:
+  - One peak near 1.0 → nearly identical answers
+  - One peak between 0.1 and 0.3 → fundamentally different answers
+- This indicates that BM25 and embeddings often retrieve **different contextual evidence**.
 
 ---
 
-## 8. Retrieval Quality Analysis
+## 9. Chunk-Level Retrieval Analysis (Precision and Recall)
 
-- **Relevant chunks were retrieved**, especially with child chunking.  
-- **Recall improved with larger K**, but at the cost of increased noise.  
-- **Child chunks reduced irrelevant retrieval**, even for larger K.  
-- Generated answers in stable configurations closely matched the retrieved chunks.
+We manually analyzed retrieved chunks to evaluate:
 
----
+- **Recall**: whether all relevant chunks were retrieved
+- **Precision**: whether retrieved chunks were relevant
 
-## 9. Key Insights and Conclusions
+### Findings
 
-1. Chunking strategy has the strongest impact on RAG stability.  
-2. Father–Son chunking produces more consistent and reliable answers.  
-3. BM25 performs well on factual queries, while embeddings are better suited for conceptual queries.  
-4. **K = 5** provides the best trade-off between precision and recall.  
-5. Answer stability is an effective metric for evaluating RAG pipelines.
+- Fixed-size chunking often required large K to achieve acceptable recall, introducing noise.
+- Father–Son chunking retrieved more relevant chunks with fewer irrelevant ones.
+- Precision and recall were both higher with hierarchical chunking.
 
 ---
 
-## 10. Example Queries with Answer Excerpts
+## 10. Answer Faithfulness and Grounding
 
-This section presents **real user questions** together with **selected excerpts from generated answers**, in order to qualitatively demonstrate the effects of chunking strategy, retrieval method, and **K** on answer quality, focus, and stability.
+We evaluated whether generated answers were faithful to the retrieved chunks.
+
+### Observations
+
+- Stable configurations produced answers closely grounded in retrieved text.
+- Noisy retrieval led to topic drift and over-generalization.
+- Answer quality correlated strongly with **context relevance**, not model size.
 
 ---
 
-### Example 1 – Factual / Argument-Centered Question
+## 11. Tested Queries and Qualitative Answer Analysis
 
-**User question**
+In order to complement the quantitative evaluation, we tested the RAG pipeline on **real user queries** covering both **factual** and **conceptual** information needs.
+
+These queries were used to generate the answers analyzed in the stability and similarity plots.
+
+---
+
+### 11.1 Example Factual Query
+
+**Tested question**
 
 > What was the main argument regarding the immigration bill that was presented?
 
----
+This question targets a **specific parliamentary argument** and requires retrieving precise political positions expressed during debates.
 
-### Fixed Chunking + BM25
+#### Observations across configurations
 
-#### K = 3
+- With **fixed-size chunking** and high K, answers tended to:
+  - Include unrelated political topics
+  - Drift toward broader immigration discussions
+- With **Father–Son (child) chunking**, answers:
+  - Focused consistently on the devolution of immigration powers
+  - Remained stable as K increased
+  - Closely matched the retrieved chunks
 
-**Answer excerpt**
-> “The main arguments regarding the immigration bill presented mainly revolved around concerns about devolving immigration powers to the Scottish Government. Critics argued that this would not solve existing problems but create new ones, such as difficulties in border security and consistency with UK immigration policy.”
-
-**Observation**  
-The answer is relevant but relatively narrow and misses additional arguments raised later in the debate.
-
----
-
-#### K = 5
-
-**Answer excerpt**
-> “The main arguments presented regarding the immigration bill included concerns about inefficiency, border security between England and Scotland, and whether the Scottish Government could manage immigration powers effectively.”
-
-**Observation**  
-Recall improves, but the answer becomes more verbose and slightly repetitive.
+This behavior directly explains the higher stability scores observed for hierarchical chunking in **Plot A**.
 
 ---
 
-#### K = 8
+### 11.2 Example Conceptual Query
 
-**Answer excerpt**
-> “The main arguments regarding the immigration bill seemed to focus on strengthening the process and making getting a British passport more difficult... There was also discussion about fraud within the government and criticism of the Prime Minister’s handling of the Budget.”
-
-**Observation**  
-The answer suffers from **topic drift**, introducing unrelated political issues due to noisy retrieval.
-
----
-
-### Father–Son (Child) Chunking + BM25
-
-#### K = 5
-
-**Answer excerpt**
-> “The main argument regarding the immigration bill was that it fails to offer the security, clarity or accountability needed to deliver outcomes. The Bill proposes devolving immigration powers to the Scottish Government, which raises concerns about border management and policy consistency.”
-
-**Observation**  
-The answer is **focused, concise, and directly grounded in the relevant debate**.
-
----
-
-#### K = 8
-
-**Answer excerpt**
-> “The Bill fails to offer the security, clarity, or accountability needed. There are unanswered questions regarding immigration management between England and Scotland, including border security and legal safeguards.”
-
-**Observation**  
-Despite a larger K, the answer remains stable and on-topic, demonstrating the robustness of hierarchical chunking.
-
----
-
-### Father–Son (Child) Chunking + Embeddings
-
-#### K = 8
-
-**Answer excerpt**
-> “The main arguments against the immigration bill included concerns about border security, vulnerable populations being put at risk, and disagreements over the effectiveness of current immigration policies.”
-
-**Observation**  
-Although semantically relevant, the answer partially shifts to **US immigration debates**, highlighting a limitation of dense retrieval without lexical grounding.
-
----
-
-## Example 2 – Conceptual / Analytical Question
-
-**User question**
+**Tested question**
 
 > What is the central tension that emerges from the speeches between the need for national security and the protection of citizens’ privacy in the digital age?
 
----
+This question is **conceptual** and requires synthesizing arguments across multiple speeches rather than extracting a single fact.
 
-### Fixed Chunking + BM25 (K = 3)
+#### Observations across configurations
 
-**Answer excerpt**
-> “The central tension revolves around encryption and law enforcement access to data. Speakers warned that any ‘way in’ for security services could be exploited by criminals or hostile states, undermining citizens’ privacy.”
+- **BM25-based retrieval** tended to emphasize:
+  - Encryption and law-enforcement access
+  - Keyword-matching discussions
+- **Embedding-based retrieval** enabled:
+  - Higher-level synthesis
+  - Integration of multiple viewpoints on privacy and security
 
-**Observation**  
-Accurate and grounded, but highly dependent on keyword overlap.
-
----
-
-### Father–Son (Child) Chunking + Embeddings (K = 3)
-
-**Answer excerpt**
-> “The tension lies in balancing national security with privacy rights, particularly regarding end-to-end encryption, digital ID systems, and lawful access. Speakers emphasized the risk of weakening encryption while acknowledging security threats.”
-
-**Observation**  
-The answer provides **higher-level synthesis** and abstracts across multiple debates, making it well suited for conceptual questions.
+However, conceptual questions were more sensitive to retrieval variation, which explains their slightly lower stability scores in **Plot C**.
 
 ---
 
-## 11. Final Takeaway
+### 11.3 Relation to Quantitative Results
 
-This evaluation demonstrates that **hierarchical chunking has a stronger impact on answer quality and stability than retrieval method or K alone**.  
-Combined with semantic retrieval, it enables a **robust and stable RAG system**, even when using a lightweight local LLM.
+These tested queries confirm the quantitative findings:
+
+- Stable configurations correspond to answers grounded in relevant chunks
+- Unstable configurations often introduce noise or topic drift
+- Hierarchical chunking improves both **answer stability** and **faithfulness**
+
+The qualitative behavior observed for these queries directly supports the trends shown in **Plots A, B, and C**.
+tive findings.
+
+---
+
+## 12. Final Takeaway
+
+This evaluation demonstrates that **hierarchical chunking is the most critical factor** in building a stable and reliable RAG system.
+
+When combined with appropriate retrieval strategies, it enables robust performance even with a lightweight local LLM.
