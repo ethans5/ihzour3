@@ -26,6 +26,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Tuple, Optional
+from rag.rag_pipeline import build_prompt, generate_with_ollama
+
 
 import numpy as np
 
@@ -262,56 +264,6 @@ def retrieve_emb(index: EmbIndex, query: str, k: int) -> List[Dict[str, Any]]:
     return out
 
 
-# ============================================================
-# RAG prompt + Generation (Ollama)
-# ============================================================
-def build_prompt(query: str, retrieved: List[Dict[str, Any]]) -> Tuple[str, List[str]]:
-    """
-    Build a strict prompt: answer using ONLY context.
-    Also returns unique sources list (with file:// link).
-    """
-    sources = []
-    blocks = []
-
-    if MAX_CONTEXT_CHUNKS is not None:
-        retrieved = retrieved[:MAX_CONTEXT_CHUNKS]
-
-    for i, c in enumerate(retrieved, start=1):
-        lk = file_link(c["filename"], c["parliament"])
-        c["file_abs_path"] = lk["abs_path"]
-        c["file_uri"] = lk["file_uri"]
-
-        ref = f"{c['filename']} | {c['chunk_id']} | {c['date']} | {c['parliament']} | {c['file_uri']}"
-        sources.append(ref)
-        blocks.append(f"[Doc {i}] ({ref})\n{c['text']}")
-
-    prompt = (
-        "You are a helpful assistant for parliamentary debates.\n"
-        "Answer the QUESTION using ONLY the CONTEXT below.\n"
-        "If the answer is not present in the context, say: \"I cannot answer with the provided context.\".\n"
-        "When you state a fact, cite the doc number (e.g., Doc 2).\n\n"
-        "CONTEXT:\n" + "\n\n".join(blocks) +
-        f"\n\nQUESTION: {query}\n"
-        "ANSWER:"
-    )
-    return prompt, sorted(set(sources))
-
-
-def generate_answer(prompt: str) -> str:
-    """
-    Local generation with Ollama.
-    """
-    if not USE_LLM:
-        return "NO_LLM (generation disabled)."
-    if not HAS_OLLAMA:
-        return "NO_LLM (ollama python package not installed)."
-
-    resp = ollama.chat(
-        model=OLLAMA_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        options={"temperature": OLLAMA_TEMPERATURE},
-    )
-    return (resp.get("message", {}) or {}).get("content", "").strip()
 
 
 # ============================================================
@@ -410,7 +362,7 @@ def run_suite(suite_name: str, queries_path: Path) -> Path:
 
                 # --- RAG ---
                 prompt, sources = build_prompt(query_text, retrieved)
-                answer = generate_answer(prompt)
+                answer = generate_with_ollama(prompt)
 
                 dt = time.time() - t0
 

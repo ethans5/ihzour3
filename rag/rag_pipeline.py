@@ -125,6 +125,3 @@ def _extract_doc_refs_from_prompt(prompt: str):
             ordered.append(n)
     return ordered
 
-# Pour compatibilité avec ton run_all_queries.py (il importe generate_with_gemini)
-def generate_with_gemini(prompt: str) -> str:
-    return generate_with_ollama(prompt)
