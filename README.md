@@ -141,6 +141,97 @@ This histogram shows cosine similarity between answers generated using BM25 retr
   - One peak between 0.1 and 0.3 → fundamentally different answers
 - This indicates that BM25 and embeddings often retrieve **different contextual evidence**.
 ---
+
+## Tested Queries and Query IDs
+
+To evaluate the RAG pipeline under realistic conditions, we used a fixed set of **16 test queries**, divided along two axes:
+
+- **Source**: instructor-provided (required) vs student-written (custom)
+- **Type**: factual vs conceptual
+
+Each query is associated with a **unique ID**, which is used consistently throughout:
+- the stability analysis
+- the BM25 vs embedding comparisons
+- the qualitative answer evaluation
+
+This allows precise attribution of observed behaviors to specific questions.
+
+---
+
+### Custom Queries (Student-Written)
+
+These queries were designed to reflect realistic user information needs and to test both **fact extraction** and **high-level reasoning**.
+
+#### Factual Custom Queries
+
+| Query ID | Question |
+|--------|----------|
+| **CUS_F1** | Which countries or regions were mentioned as receiving UK humanitarian aid in the debates? |
+| **CUS_F2** | What specific funding amounts (in pounds) were announced for humanitarian assistance, and on what dates? |
+| **CUS_F3** | Which ministers or government departments were mentioned as responsible for managing the response to the Sudan crisis? |
+| **CUS_F4** | What dates were mentioned regarding decisions to resume or suspend funding to UNRWA? |
+
+These queries require retrieving **precise entities, dates, and numerical values**, making them well-suited for evaluating recall and precision.
+
+---
+
+#### Conceptual Custom Queries
+
+| Query ID | Question |
+|--------|----------|
+| **CUS_C1** | How do speakers justify humanitarian intervention: moral duty, international law, or national interest? |
+| **CUS_C2** | What arguments are made about balancing border control with humanitarian obligations to refugees and asylum seekers? |
+| **CUS_C3** | How do speakers frame the relationship between economic stability and national security in the debates? |
+| **CUS_C4** | What recurring themes appear when speakers discuss the effectiveness of international organizations (UN, WFP, NGOs) in crisis response? |
+
+These queries require **synthesizing multiple arguments across different speeches**, making them more sensitive to retrieval variation.
+
+---
+
+### Required Queries (Instructor-Provided)
+
+These queries were provided as part of the assignment instructions and ensure **comparability across student submissions**.
+
+#### Factual Required Queries
+
+| Query ID | Question |
+|--------|----------|
+| **REQ_F1** | On what dates did the British Prime Minister deliver his speech on the defense budget? |
+| **REQ_F2** | What was the main argument regarding the immigration bill that was presented? |
+| **REQ_F3** | What three industrial sectors were mentioned as the main victims of the new trade policy that was presented? |
+| **REQ_F4** | What organizations were mentioned by the speakers as supporting the proposed reform of the health system? |
+
+These questions test the system’s ability to extract **clearly stated factual information** from long debates.
+
+---
+
+#### Conceptual Required Queries
+
+| Query ID | Question |
+|--------|----------|
+| **REQ_C1** | How does the rhetoric on climate change vary between different speakers; is the emphasis on economic opportunity or existential crisis? |
+| **REQ_C2** | What is the central tension that emerges from the speeches between the need for national security and the protection of citizens’ privacy in the digital age? |
+| **REQ_C3** | How is the state’s moral responsibility towards refugees and asylum seekers described, and what are the ethical (rather than economic) arguments given for and against their absorption? |
+| **REQ_C4** | In what ways did speakers link investment in education to reducing future crime, and was there consensus on this issue? |
+
+These queries are intentionally open-ended and test the RAG system’s ability to produce **grounded, coherent synthesis** rather than simple fact lookup.
+
+---
+
+### Role of Query IDs in the Analysis
+
+The query IDs (e.g., `REQ_C2`, `CUS_F4`) are used consistently in:
+
+- Stability rankings (most stable / most unstable configurations)
+- BM25 vs embedding divergence analysis
+- Qualitative examples discussed in later sections
+
+This ensures **traceability** between:
+- individual questions
+- retrieved chunks
+- generated answers
+- observed stability patterns
+
 ## 9. Detailed Stability and Retrieval Variance Analysis
 
 Beyond aggregate stability scores, we conducted a fine-grained analysis to identify the **most unstable and most stable configurations**, as well as the **largest differences between BM25 and embedding-based retrieval**.
