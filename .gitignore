@@ -10,7 +10,9 @@ __pycache__/
 venv/
 ENV/
 env/
-data/
+data/ex2_clean
+data/ex2_lemm
+data\embeddings
 # ========================
 # OS / Editor
 # ========================
@@ -29,11 +31,9 @@ Thumbs.db
 # Outputs / results (si générés)
 # ========================
 outputs/
-results/
-embeddings/
-*.csv
-*.jsonl
 
+embeddings/
+evaluation/results/answers_embeddings.npy
 # ========================
 # Evaluation auto
 # ========================
