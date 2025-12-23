@@ -68,6 +68,15 @@ BM25 relies on exact term matching and is especially effective for:
 
 Dense embeddings were generated using **MPNet (`all-mpnet-base-v2`)**.  
 This method captures semantic similarity and enables retrieval even when the query is a paraphrase of the source text.
+### Practical Note on Embedding Computation
+
+The answer embeddings used for stability and similarity analysis were computed using **Google Colab with GPU acceleration**.
+
+This was necessary because generating dense embeddings with `all-mpnet-base-v2` over hundreds of generated answers is computationally expensive on CPU.  
+Using a GPU significantly reduced embedding computation time while ensuring identical results.
+
+Once computed, the embeddings were saved and reused locally for all subsequent analyses and plotting steps.
+
 
 ---
 
